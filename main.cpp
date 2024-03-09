@@ -1,6 +1,11 @@
+#include "covert.h"
 #include <iostream>
+using namespace std;
+int main()  {
 
-int main() {
-    std::cout << "Hello, World!" << std::endl;
+    string ip;
+    cout << "enter ip address" << '\n';
+    cin >> ip;
+
     return 0;
 }
