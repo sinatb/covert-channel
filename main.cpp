@@ -9,8 +9,11 @@ int main()  {
     cin >> ip;
     try {
         covert_handler c(ip);
-        char *message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
-        c.send_covert_message(message);
+        c.start();
+        string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
+        c.add_message(message);
+        while(c.should_run()) {
+        }
     }catch (const exception& e){
         cout <<"exception is : "<< e.what() << '\n';
     }
