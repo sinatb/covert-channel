@@ -8,14 +8,10 @@ int main()  {
     cout << "enter ip address" << '\n';
     cin >> ip;
     try {
+        string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
         covert_handler c(ip);
-        c.start();
-//        string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
-//        c.add_message(message);
-//        string message2 = "hoesin pishgahi";
-//        c.add_message(message2);
-        while(c.should_run()) {
-        }
+        c.send_message(message.c_str());
+
     }catch (const exception& e){
         cout <<"exception is : "<< e.what() << '\n';
     }
