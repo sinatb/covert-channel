@@ -14,6 +14,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <pcap.h>
+
 
 class covert_handler{
 public:
@@ -68,9 +70,8 @@ private:
     DWORD ReplySize = 0;
     void covert_message_handler()
     {
-        while (true)
+        while (shouldRun.load())
         {
-
             size_t chunk_size = 32;
             const char* message = nullptr;
             {
@@ -113,8 +114,9 @@ private:
                         throw std::runtime_error(&"Failed to send ICMP message "[GetLastError()]);
                     }
                 }
-            }else{ //listener mode
-
+            }
+            else//listener mode
+            {
             }
         }
     }

@@ -10,8 +10,10 @@ int main()  {
     try {
         covert_handler c(ip);
         c.start();
-        string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
-        c.add_message(message);
+//        string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
+//        c.add_message(message);
+//        string message2 = "hoesin pishgahi";
+//        c.add_message(message2);
         while(c.should_run()) {
         }
     }catch (const exception& e){
