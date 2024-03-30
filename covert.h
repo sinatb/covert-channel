@@ -9,14 +9,44 @@
 #include <icmpapi.h>
 #include <iostream>
 #include <stdexcept>
-#include <thread>
-#include <stack>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
 #include <pcap.h>
+#include <ws2tcpip.h>
+
+/* From tcptraceroute, convert a numeric IP address to a string */
+#define IPTOSBUFFERS    12
+char *iptos(u_long in)
+{
+    static char output[IPTOSBUFFERS][3*4+3+1];
+    static short which;
+    u_char *p;
+
+    p = (u_char *)&in;
+    which = (which + 1 == IPTOSBUFFERS ? 0 : which + 1);
+    _snprintf_s(output[which], sizeof(output[which]), sizeof(output[which]),"%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+    return output[which];
+}
+
+char* ip6tos(struct sockaddr *sockaddr, char *address, int addrlen)
+{
+    socklen_t sockaddrlen;
+
+#ifdef WIN32
+    sockaddrlen = sizeof(struct sockaddr_in6);
+#else
+    sockaddrlen = sizeof(struct sockaddr_storage);
+#endif
 
 
+    if(getnameinfo(sockaddr,
+                   sockaddrlen,
+                   address,
+                   addrlen,
+                   NULL,
+                   0,
+                   NI_NUMERICHOST) != 0) address = NULL;
+
+    return address;
+}
 class covert_handler{
 public:
     explicit covert_handler(std::string& ip) : ip(ip)
@@ -63,6 +93,69 @@ public:
             }
         }
     }
+    void receive_message()
+    {
+        pcap_addr_t *a;
+        char ip6str[128];
+        char errbuf[PCAP_ERRBUF_SIZE];
+        pcap_if_t *alldevs;
+        pcap_if_t *dev;
+        pcap_t *handle;
+        // Find all available network interfaces
+        if (pcap_findalldevs(&alldevs, errbuf) == -1) {
+            throw std::runtime_error("Error finding devices: " + std::string(errbuf));
+        }
+        int i = 1;
+        // Iterate over the list of network interfaces
+        for (dev = alldevs; dev != NULL; dev = dev->next) {
+            std::cout << "Number: " << i << '\n';
+            std::cout << "Interface: " << dev->name << '\n';
+            std::cout << "Description: " << dev->description << '\n';
+            for(a=dev->addresses;a;a=a->next) {
+                printf("\tAddress Family: #%d\n",a->addr->sa_family);
+
+                switch(a->addr->sa_family)
+                {
+                    case AF_INET:
+                        printf("\tAddress Family Name: AF_INET\n");
+                        if (a->addr)
+                            printf("\tAddress: %s\n",iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr));
+                        if (a->netmask)
+                            printf("\tNetmask: %s\n",iptos(((struct sockaddr_in *)a->netmask)->sin_addr.s_addr));
+                        if (a->broadaddr)
+                            printf("\tBroadcast Address: %s\n",iptos(((struct sockaddr_in *)a->broadaddr)->sin_addr.s_addr));
+                        if (a->dstaddr)
+                            printf("\tDestination Address: %s\n",iptos(((struct sockaddr_in *)a->dstaddr)->sin_addr.s_addr));
+                        break;
+
+                    case AF_INET6:
+                        printf("\tAddress Family Name: AF_INET6\n");
+                        if (a->addr)
+                            printf("\tAddress: %s\n", ip6tos(a->addr, ip6str, sizeof(ip6str)));
+                        break;
+
+                    default:
+                        printf("\tAddress Family Name: Unknown\n");
+                        break;
+                }
+            }
+            printf("\n");
+            i++;
+        }
+        int num;
+        std::cin >> num;
+        for (dev=alldevs,i=0; i<num-1 ;dev=dev->next,i++);
+        std::cout<<num;
+
+        handle = pcap_open_live(dev->name,65536,1,1000,errbuf);
+        if (handle == nullptr)
+        {
+            pcap_freealldevs(alldevs);
+            throw std::runtime_error("Unable to open the adapter " + std::string(dev->name));
+        }
+        pcap_freealldevs(alldevs);
+        pcap_loop(handle, 0, packet_handler, NULL);
+    }
     ~covert_handler(){
         IcmpCloseHandle(hIcmpFile);
         if (ReplyBuffer != nullptr) {
@@ -77,5 +170,9 @@ private:
     unsigned long ipaddr;
     LPVOID ReplyBuffer = nullptr;
     DWORD ReplySize = 0;
+    static void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data)
+    {
+        std::cout << "recieved packet" << '\n';
+    }
 };
 #endif //SETICMP_H

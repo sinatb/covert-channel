@@ -10,8 +10,7 @@ int main()  {
     try {
         string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
         covert_handler c(ip);
-        c.send_message(message.c_str());
-
+        c.receive_message();
     }catch (const exception& e){
         cout <<"exception is : "<< e.what() << '\n';
     }
