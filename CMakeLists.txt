@@ -4,7 +4,8 @@ project(covert_canal)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(covert_canal main.cpp
-        covert.h)
+        covert.h
+        utils.h)
 find_library(PCAP_LIBRARY pcap)
 include_directories("C://WpdPack//Include")
 target_link_libraries(covert_canal PRIVATE ${PCAP_LIBRARY})
