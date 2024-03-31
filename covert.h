@@ -7,6 +7,7 @@
 #include "utils.h"
 class covert_handler{
 public:
+
     explicit covert_handler( string& ip) : ip(ip)
     {
         ipaddr = inet_addr(ip.c_str());
@@ -19,7 +20,7 @@ public:
         }
         set_pcap_if();
         thread receiver_thread(&covert_handler::receive_message,this);
-        receiver_thread.join();
+        receiver_thread.detach();
     }
     void send_message(const char* message){
         size_t chunk_size = 32;
@@ -54,8 +55,19 @@ public:
             }
         }
     }
-    void toggle_message_show(){
-        ShowReceivedMSG = ~ShowReceivedMSG;
+    static void print_stats()
+    {
+        for(const auto& p_if : covert_handler::pkt_inf)
+        {
+            cout << p_if;
+        }
+    }
+    static void print_data()
+    {
+        for (const auto& p_ms : covert_handler::pkt_msg)
+        {
+            cout << p_ms;
+        }
     }
     ~covert_handler(){
         IcmpCloseHandle(hIcmpFile);
@@ -75,7 +87,9 @@ private:
     pcap_t *handle;
     pcap_if_t * alldevs;
     pcap_if_t * dev;
-    bool ShowReceivedMSG = false;
+    inline static vector<string> pkt_inf {};
+    inline static vector<string> pkt_msg{};
+
     void set_pcap_if()
     {
         char errbuf[PCAP_ERRBUF_SIZE];
@@ -118,32 +132,32 @@ private:
     }
     void receive_message()
     {
-        pcap_loop(handle, 0, packet_handler, nullptr);
+        pcap_loop(handle, 0,packet_handler, nullptr);
     }
     static void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data)
     {
-        string source_ip = to_string((int)pkt_data[26]) + "." +
-                                to_string((int)pkt_data[27]) + "." +
-                                to_string((int)pkt_data[28]) + "." +
-                                to_string((int)pkt_data[29]);
-
-        u_char type = pkt_data[34]; // Offset for ICMP type in Ethernet + IP header
-        u_char code = pkt_data[35]; // Offset for ICMP code in Ethernet + IP header
-
-        int payload_length = header->len - 14 - 20 - 8;
-
-        // Print information about the packet
-        cout << "Received ICMP packet" <<  endl;
-        cout << "Type: " << (int)type << ", Code: " << (int)code <<  endl;
-        cout << "Source: " << source_ip << '\n';
-        // Print the payload data
-        if (payload_length > 0) {
-            cout << "Payload Data: ";
-            for (int i = 42; i < header->len; ++i) { // Offset for payload in Ethernet + IP header
-                cout <<  hex << (char)pkt_data[i];
+       u_char type = pkt_data[34];
+       u_char code = pkt_data[35];
+       string info = "Source Ip : " + to_string((int) pkt_data[26]) + "." +
+                               to_string((int) pkt_data[27]) + "." +
+                               to_string((int) pkt_data[28]) + "." +
+                               to_string((int) pkt_data[29]) + " " +
+                               "Type : " + to_string((int)(type)) + " " +
+                               "Code : " + to_string((int)(code)) + " " +
+                               '\n';
+       pkt_inf.push_back(info);
+       string data;
+       int payload_length = header->len - 14 - 20 - 8;
+       if (payload_length > 0) {
+            for (int i = 42; i < header->len; ++i)
+            {
+                data+=(char) pkt_data[i];
             }
-            cout <<  endl;
-        }
+            data += '\n';
+       }
+       pkt_msg.push_back(data);
     }
+
 };
+
 #endif //SETICMP_H

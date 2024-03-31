@@ -4,13 +4,14 @@
 
 #ifndef UTILS_H
 #define UTILS_H
+#include <thread>
+#include <vector>
 #include <iostream>
 #include <stdexcept>
 #include <winsock.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
-#include <thread>
 #include <icmpapi.h>
 #include <pcap.h>
 
