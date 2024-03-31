@@ -45,6 +45,10 @@ ICMP Payload (variable size)
 so the bytes 26-29 are the source IP, bytes 34 and 35 are the Type and code and from byte 42 (14+20+8) to the end is the
 received data.
 
+The main function in the receiving part is `pcap_loop`. This function is a blocking function, and therefore it is run on
+a different thread from the main thread. This function receives the packets and calls the handler on the packets passing
+the filter.
+
 The `utils.h` file stores some useful functions from pcap documentation for printing the network interfaces and their ip
 addresses.
 
