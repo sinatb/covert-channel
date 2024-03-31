@@ -16,6 +16,8 @@
 using namespace std;
 
 #define IPTOSBUFFERS    12
+#define PCAP_NETMASK_UNKNOWN 0xFFFFFFFF
+
 char *iptos(u_long in)
 {
     static char output[IPTOSBUFFERS][3*4+3+1];
@@ -45,9 +47,9 @@ char* ip6tos(struct sockaddr *sockaddr, char *address, int addrlen)
                    sockaddrlen,
                    address,
                    addrlen,
-                   NULL,
+                   nullptr,
                    0,
-                   NI_NUMERICHOST) != 0) address = NULL;
+                   NI_NUMERICHOST) != 0) address = nullptr;
 
     return address;
 }

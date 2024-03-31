@@ -5,18 +5,17 @@
 #ifndef SETICMP_H
 #define SETICMP_H
 #include "utils.h"
-/* From tcptraceroute, convert a numeric IP address to a string */
 class covert_handler{
 public:
-    explicit covert_handler(std::string& ip) : ip(ip)
+    explicit covert_handler( string& ip) : ip(ip)
     {
         ipaddr = inet_addr(ip.c_str());
         if (ipaddr == INADDR_NONE) {
-            throw std::runtime_error("Invalid IP address");
+            throw runtime_error("Invalid IP address");
         }
         hIcmpFile = IcmpCreateFile();
         if (hIcmpFile == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error("Failed to create ICMP file handle");
+            throw runtime_error("Failed to create ICMP file handle");
         }
     }
     void send_message(const char* message){
@@ -24,13 +23,13 @@ public:
         size_t message_size = strlen(message);
         for (size_t offset = 0; offset < message_size; offset += chunk_size) {
             char SendData[32] = {0};
-            size_t bytes_to_copy = std::min(chunk_size, message_size - offset);
+            size_t bytes_to_copy =  min(chunk_size, message_size - offset);
             memcpy(SendData, message + offset, bytes_to_copy);
 
             ReplySize = sizeof(ICMP_ECHO_REPLY) + sizeof(SendData);
             ReplyBuffer = (VOID *) malloc(ReplySize);
             if (ReplyBuffer == nullptr) {
-                throw std::runtime_error("Failed to allocate memory for reply buffer");
+                throw runtime_error("Failed to allocate memory for reply buffer");
             }
             dwRetVal = IcmpSendEcho(hIcmpFile,
                                     ipaddr,
@@ -45,10 +44,10 @@ public:
                 auto pEchoReply = (PICMP_ECHO_REPLY) ReplyBuffer;
                 struct in_addr ReplyAddr{};
                 ReplyAddr.S_un.S_addr = pEchoReply->Address;
-                std::cout << "Reply from\n" << inet_ntoa(ReplyAddr) << '\n'
-                          << "is : " << std::string((char *) (pEchoReply->Data), bytes_to_copy) << '\n';
+                cout << "Reply from\n" << inet_ntoa(ReplyAddr) << '\n'
+                        << "is : " <<  string((char *) (pEchoReply->Data), bytes_to_copy) << '\n';
             } else {
-                throw std::runtime_error(&"Failed to send ICMP message "[GetLastError()]);
+                throw runtime_error(&"Failed to send ICMP message "[GetLastError()]);
             }
         }
     }
@@ -60,31 +59,47 @@ public:
         pcap_t *handle;
         // Find all available network interfaces
         if (pcap_findalldevs(&alldevs, errbuf) == -1) {
-            throw std::runtime_error("Error finding devices: " + std::string(errbuf));
+            throw runtime_error("Error finding devices: " +  string(errbuf));
         }
         int i = 1;
         // Iterate over the list of network interfaces
-        for (dev = alldevs; dev != NULL; dev = dev->next) {
-            std::cout << "Number: " << i << '\n';
-            std::cout << "Interface: " << dev->name << '\n';
-            std::cout << "Description: " << dev->description << '\n';
+        for (dev = alldevs; dev != nullptr; dev = dev->next) {
+            cout << "Number: " << i << '\n';
+            cout << "Interface: " << dev->name << '\n';
+            cout << "Description: " << dev->description << '\n';
             print_if_ip(dev->addresses);
             i++;
         }
         int num;
-        std::cin >> num;
+        cin >> num;
         for (dev=alldevs,i=0; i<num-1 ;dev=dev->next,i++);
 
-        std::cout << "Opening device " << dev->name << '\n';
+        cout << "Opening device " << dev->name << '\n';
 
         handle = pcap_open_live(dev->name,65536,1,1000,errbuf);
         if (handle == nullptr)
         {
             pcap_freealldevs(alldevs);
-            throw std::runtime_error("Unable to open the adapter " + std::string(dev->name));
+            throw runtime_error("Unable to open the adapter " +  string(dev->name));
         }
         pcap_freealldevs(alldevs);
+        // Compile the filter expression
+
+        u_long netmask=((struct sockaddr_in *)(dev->addresses->netmask))->sin_addr.S_un.S_addr;
+        if (dev->addresses == nullptr)
+            netmask = PCAP_NETMASK_UNKNOWN;
+        struct bpf_program fp{};
+        if (pcap_compile(handle, &fp, "icmp", 0, netmask) == -1) {
+            throw runtime_error("Error compiling filter: " +  string(pcap_geterr(handle)));
+        }
+
+        // Set the filter
+        if (pcap_setfilter(handle, &fp) == -1) {
+            throw runtime_error("Error setting filter: " +  string(pcap_geterr(handle)));
+        }
+        
         pcap_loop(handle, 0, packet_handler, NULL);
+        pcap_close(handle);
     }
     ~covert_handler(){
         IcmpCloseHandle(hIcmpFile);
@@ -102,7 +117,28 @@ private:
     DWORD ReplySize = 0;
     static void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data)
     {
-        std::cout << "recieved packet" << '\n';
+        string source_ip = to_string((int)pkt_data[26]) + "." +
+                                to_string((int)pkt_data[27]) + "." +
+                                to_string((int)pkt_data[28]) + "." +
+                                to_string((int)pkt_data[29]);
+
+        u_char type = pkt_data[34]; // Offset for ICMP type in Ethernet + IP header
+        u_char code = pkt_data[35]; // Offset for ICMP code in Ethernet + IP header
+
+        int payload_length = header->len - 14 - 20 - 8;
+
+        // Print information about the packet
+        cout << "Received ICMP packet" <<  endl;
+        cout << "Type: " << (int)type << ", Code: " << (int)code <<  endl;
+        cout << "Source: " << source_ip << '\n';
+        // Print the payload data
+        if (payload_length > 0) {
+            cout << "Payload Data: ";
+            for (int i = 42; i < header->len; ++i) { // Offset for payload in Ethernet + IP header
+                cout <<  hex << (char)pkt_data[i];
+            }
+            cout <<  endl;
+        }
     }
 };
 #endif //SETICMP_H
