@@ -10,13 +10,13 @@ int main()  {
         covert_handler c(cmd);
         while (cmd != "exit"){
             cout << "enter command" << '\n';
-            cin >> cmd;
+            getline(cin,cmd);
             if (cmd == "stats"){
                 covert_handler::print_stats();
             }else if (cmd == "data"){
                 covert_handler::print_data();
-            }else if (cmd == "send"){
-                c.send_message(cmd.c_str());
+            }else if (cmd.find("send") != string::npos){
+                c.send_message(cmd.substr(5).c_str());
             }
         }
     }catch (const exception& e){

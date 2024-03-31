@@ -87,7 +87,7 @@ private:
     pcap_t *handle;
     pcap_if_t * alldevs;
     pcap_if_t * dev;
-    inline static vector<string> pkt_inf {};
+    inline static vector<string> pkt_inf{};
     inline static vector<string> pkt_msg{};
 
     void set_pcap_if()
@@ -122,7 +122,8 @@ private:
         if (dev->addresses == nullptr)
             netmask = PCAP_NETMASK_UNKNOWN;
         struct bpf_program fp{};
-        if (pcap_compile(handle, &fp, "icmp", 0, netmask) == -1) {
+        string filter_string = string("icmp and src host ") + ip;
+        if (pcap_compile(handle, &fp, filter_string.c_str() , 0, netmask) == -1) {
             throw runtime_error("Error compiling filter: " +  string(pcap_geterr(handle)));
         }
         // Set the filter
