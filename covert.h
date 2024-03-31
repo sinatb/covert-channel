@@ -17,6 +17,9 @@ public:
         if (hIcmpFile == INVALID_HANDLE_VALUE) {
             throw runtime_error("Failed to create ICMP file handle");
         }
+        set_pcap_if();
+        thread receiver_thread(&covert_handler::receive_message,this);
+        receiver_thread.join();
     }
     void send_message(const char* message){
         size_t chunk_size = 32;
@@ -51,12 +54,31 @@ public:
             }
         }
     }
-    void receive_message()
+    void toggle_message_show(){
+        ShowReceivedMSG = ~ShowReceivedMSG;
+    }
+    ~covert_handler(){
+        IcmpCloseHandle(hIcmpFile);
+        if (ReplyBuffer != nullptr) {
+            free(ReplyBuffer);
+        }
+        pcap_close(handle);
+    }
+
+private:
+    std::string ip;
+    HANDLE hIcmpFile;
+    DWORD dwRetVal = 0;
+    unsigned long ipaddr;
+    LPVOID ReplyBuffer = nullptr;
+    DWORD ReplySize = 0;
+    pcap_t *handle;
+    pcap_if_t * alldevs;
+    pcap_if_t * dev;
+    bool ShowReceivedMSG = false;
+    void set_pcap_if()
     {
         char errbuf[PCAP_ERRBUF_SIZE];
-        pcap_if_t *alldevs;
-        pcap_if_t *dev;
-        pcap_t *handle;
         // Find all available network interfaces
         if (pcap_findalldevs(&alldevs, errbuf) == -1) {
             throw runtime_error("Error finding devices: " +  string(errbuf));
@@ -73,9 +95,7 @@ public:
         int num;
         cin >> num;
         for (dev=alldevs,i=0; i<num-1 ;dev=dev->next,i++);
-
         cout << "Opening device " << dev->name << '\n';
-
         handle = pcap_open_live(dev->name,65536,1,1000,errbuf);
         if (handle == nullptr)
         {
@@ -84,7 +104,6 @@ public:
         }
         pcap_freealldevs(alldevs);
         // Compile the filter expression
-
         u_long netmask=((struct sockaddr_in *)(dev->addresses->netmask))->sin_addr.S_un.S_addr;
         if (dev->addresses == nullptr)
             netmask = PCAP_NETMASK_UNKNOWN;
@@ -92,29 +111,15 @@ public:
         if (pcap_compile(handle, &fp, "icmp", 0, netmask) == -1) {
             throw runtime_error("Error compiling filter: " +  string(pcap_geterr(handle)));
         }
-
         // Set the filter
         if (pcap_setfilter(handle, &fp) == -1) {
             throw runtime_error("Error setting filter: " +  string(pcap_geterr(handle)));
         }
-        
-        pcap_loop(handle, 0, packet_handler, NULL);
-        pcap_close(handle);
     }
-    ~covert_handler(){
-        IcmpCloseHandle(hIcmpFile);
-        if (ReplyBuffer != nullptr) {
-            free(ReplyBuffer);
-        }
+    void receive_message()
+    {
+        pcap_loop(handle, 0, packet_handler, nullptr);
     }
-
-private:
-    std::string ip;
-    HANDLE hIcmpFile;
-    DWORD dwRetVal = 0;
-    unsigned long ipaddr;
-    LPVOID ReplyBuffer = nullptr;
-    DWORD ReplySize = 0;
     static void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data)
     {
         string source_ip = to_string((int)pkt_data[26]) + "." +

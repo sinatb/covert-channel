@@ -7,9 +7,10 @@ int main()  {
     cout << "enter ip address" << '\n';
     cin >> ip;
     try {
-        string message = "hello jksdhgkldsjahgajksdhlgjkadshljgldjasghjkljk";
         covert_handler c(ip);
-        c.receive_message();
+        while (true){
+
+        }
     }catch (const exception& e){
         cout <<"exception is : "<< e.what() << '\n';
     }
